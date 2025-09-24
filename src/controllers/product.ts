@@ -1,16 +1,47 @@
 import type { Request, Response } from "express";
+import { ZodError, z } from "zod";
 import { AppDataSource } from "../data-source.js";
 import { Product } from "../models/product.js";
+import { rollbar } from "../rollbar-config.js";
 
 const productRepository = AppDataSource.getRepository(Product);
+
+// Walidatory Zod
+const getProductSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+  }),
+});
+
+const createProductSchema = z.object({
+  body: z.object({
+    name: z.string().min(1),
+    price: z.number().positive(),
+    stock: z.number().optional(),
+    description: z.string().max(150).optional(),
+  }),
+});
+
+const updateProductSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+  }),
+  body: z.object({
+    name: z.string().min(1).optional(),
+    price: z.number().positive().optional(),
+    stock: z.number().optional(),
+    description: z.string().max(150).optional(),
+  }),
+});
 
 // Pobieranie wszystkich produktów
 export const getProducts = async (req: Request, res: Response) => {
   try {
     const allProducts = await productRepository.find();
     res.json(allProducts);
-  } catch (error) {
-    console.error("Error fetching products:", error);
+  } catch (error: unknown) {
+    if (error instanceof Error) rollbar.error(error, req);
+    else rollbar.error(new Error(JSON.stringify(error)), req);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -18,8 +49,7 @@ export const getProducts = async (req: Request, res: Response) => {
 // Pobieranie pojedynczego produktu po ID
 export const getProduct = async (req: Request, res: Response) => {
   try {
-    const id = req.params.id;
-    if (!id) return res.status(400).json({ message: "Invalid product ID" });
+    const { params: { id } } = await getProductSchema.parseAsync(req);
 
     const product = await productRepository.findOneBy({ id });
     if (!product) {
@@ -27,8 +57,22 @@ export const getProduct = async (req: Request, res: Response) => {
     }
 
     res.json(product);
-  } catch (error) {
-    console.error("Error fetching product:", error);
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
+      // Ostrzeżenie w Rollbar, bo błąd użytkownika
+      rollbar.warning(error, req);
+
+      return res.status(400).json({
+        errors: error.issues.map((i) => ({
+          path: i.path.join("."),
+          message: i.message,
+        })),
+      });
+    }
+
+    if (error instanceof Error) rollbar.error(error, req);
+    else rollbar.error(new Error(JSON.stringify(error)), req);
+
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -36,17 +80,32 @@ export const getProduct = async (req: Request, res: Response) => {
 // Tworzenie nowego produktu
 export const createProduct = async (req: Request, res: Response) => {
   try {
-    const { name, price } = req.body;
-    if (!name || !price) {
-      return res.status(400).json({ message: "Missing product information" });
+    const { body } = await createProductSchema.parseAsync(req);
+    const { name, price, stock, description } = body;
+
+    const newProduct = productRepository.create({
+      name,
+      price,
+      stock: stock ?? 0,
+      description: description ?? "",
+    });
+
+    await productRepository.save(newProduct);
+    res.status(201).json(newProduct);
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
+      rollbar.warning(error, req);
+      return res.status(400).json({
+        errors: error.issues.map((i) => ({
+          path: i.path.join("."),
+          message: i.message,
+        })),
+      });
     }
 
-    const newProduct = productRepository.create({ name, price });
-    await productRepository.save(newProduct);
+    if (error instanceof Error) rollbar.error(error, req);
+    else rollbar.error(new Error(JSON.stringify(error)), req);
 
-    res.status(201).json(newProduct);
-  } catch (error) {
-    console.error("Error creating product:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -54,25 +113,34 @@ export const createProduct = async (req: Request, res: Response) => {
 // Aktualizacja istniejącego produktu
 export const updateProduct = async (req: Request, res: Response) => {
   try {
-    const id = req.params.id;
-    if (!id) return res.status(400).json({ message: "Invalid product ID" });
+    const { params, body } = await updateProductSchema.parseAsync(req);
 
-    const { name, price, stock, description } = req.body;
-    const product = await productRepository.findOneBy({ id });
-
+    const product = await productRepository.findOneBy({ id: params.id });
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    if (name !== undefined) product.name = name;
-    if (price !== undefined) product.price = Number(price);
-    if (stock !== undefined) product.stock = Number(stock);
-    if (description !== undefined) product.description = description;
+    // Ustawienie wartości domyślnych dla optional
+    if (body.stock === undefined) body.stock = product.stock ?? 0;
+    if (body.description === undefined) body.description = product.description ?? "";
 
+    Object.assign(product, body);
     const updatedProduct = await productRepository.save(product);
     res.json(updatedProduct);
-  } catch (error) {
-    console.error("Error updating product:", error);
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
+      rollbar.warning(error, req);
+      return res.status(400).json({
+        errors: error.issues.map((i) => ({
+          path: i.path.join("."),
+          message: i.message,
+        })),
+      });
+    }
+
+    if (error instanceof Error) rollbar.error(error, req);
+    else rollbar.error(new Error(JSON.stringify(error)), req);
+
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -80,18 +148,28 @@ export const updateProduct = async (req: Request, res: Response) => {
 // Usuwanie produktu (soft delete)
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
-    const id = req.params.id;
-    if (!id) return res.status(400).json({ message: "Invalid product ID" });
+    const { params } = await getProductSchema.parseAsync(req);
 
-    const result = await productRepository.softDelete(id);
-
+    const result = await productRepository.softDelete(params.id);
     if (!result.affected) {
       return res.status(404).json({ message: "Product not found" });
     }
 
     res.status(200).json({ message: "Product deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting product:", error);
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
+      rollbar.warning(error, req);
+      return res.status(400).json({
+        errors: error.issues.map((i) => ({
+          path: i.path.join("."),
+          message: i.message,
+        })),
+      });
+    }
+
+    if (error instanceof Error) rollbar.error(error, req);
+    else rollbar.error(new Error(JSON.stringify(error)), req);
+
     res.status(500).json({ message: "Internal server error" });
   }
 };

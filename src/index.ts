@@ -8,6 +8,7 @@ import "reflect-metadata"
 import { AppDataSource } from "./data-source.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import { rollbar } from "./rollbar-config.js";
 
 
 
@@ -50,9 +51,12 @@ app.use((req, res, next) => {
   app.set("view engine", "ejs");
 app.set("views", "src/views");
 
-AppDataSource.initialize().then(()=>{
+// 🚀 Rollbar middleware musi być NA SAMYM KOŃCU
+app.use(rollbar.errorHandler());
+
+AppDataSource.initialize().then(() => {
   app.listen(port, () => {
     console.log(`[server]: Server is running at http://localhost:${port}`);
+    rollbar.log("Server started successfully ✅"); // testowy log
   });
-})
-
+});
