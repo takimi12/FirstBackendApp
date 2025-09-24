@@ -1,0 +1,15 @@
+<%- include('includes/header') %>
+
+<h1><%= title %></h1>
+
+<% if(productsData.length > 0) { %>
+  <div>
+    <% for(let product of productsData) { %>
+      <h2><%= product.name %></h2>
+      <p>Price: <%= product.price %></p>
+      <p>Description: <%= product.desc %></p>
+    <% } %>
+  </div>
+<% } else { %>
+  <p>No products available</p>
+<% } %>

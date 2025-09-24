@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Dodaj produkt</title>
+</head>
+<body>
+  <h1>Dodaj nowy produkt</h1>
+  <form action="/products" method="POST">
+    <label>Nazwa: <input type="text" name="name" required></label><br>
+    <label>Cena: <input type="number" name="price" required></label><br>
+    <label>Opis: <textarea name="desc" required></textarea></label><br>
+    <button type="submit">Dodaj</button>
+  </form>
+</body>
+</html>
