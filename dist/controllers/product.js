@@ -1,40 +1,61 @@
-import { ZodError, z } from "zod";
+import { ZodError } from "zod";
 import { AppDataSource } from "../data-source.js";
 import { Product } from "../models/product.js";
 import { rollbar } from "../rollbar-config.js";
+import { getProductsSchema, createProductSchema, updateProductSchema, productIdSchema, } from "../validators/product.validator.js";
+import { Like, Equal } from "typeorm";
 const productRepository = AppDataSource.getRepository(Product);
-// Walidatory Zod
-const getProductSchema = z.object({
-    params: z.object({
-        id: z.string().uuid(),
-    }),
-});
-const createProductSchema = z.object({
-    body: z.object({
-        name: z.string().min(1),
-        price: z.number().positive(),
-        stock: z.number().optional(),
-        description: z.string().max(150).optional(),
-    }),
-});
-const updateProductSchema = z.object({
-    params: z.object({
-        id: z.string().uuid(),
-    }),
-    body: z.object({
-        name: z.string().min(1).optional(),
-        price: z.number().positive().optional(),
-        stock: z.number().optional(),
-        description: z.string().max(150).optional(),
-    }),
-});
-// Pobieranie wszystkich produktów
+// Pobieranie wszystkich produktów z paginacją, filtrowaniem i sortowaniem
 export const getProducts = async (req, res) => {
     try {
-        const allProducts = await productRepository.find();
-        res.json(allProducts);
+        const { query: { page = 1, perPage = 10, sortBy = "createdAt", sortDir = "desc", filterBy, query, }, } = await getProductsSchema.parseAsync(req);
+        const skip = (page - 1) * perPage;
+        const take = perPage;
+        const order = {
+            [sortBy]: sortDir.toLowerCase() === "asc" ? "asc" : "desc",
+        };
+        let where = {};
+        if (filterBy && query) {
+            switch (filterBy) {
+                case "name":
+                    where = { name: Like(`%${query}%`) };
+                    break;
+                case "price":
+                    where = { price: Equal(parseFloat(query)) };
+                    break;
+                // inne filtry można dodać w razie potrzeby
+                default:
+                    where = {};
+            }
+        }
+        const totalItems = await productRepository.count({ where });
+        const products = await productRepository.find({ skip, take, where, order });
+        const totalPages = Math.ceil(totalItems / perPage);
+        const hasNextPage = page < totalPages;
+        const hasPreviousPage = page > 1;
+        const nextPage = hasNextPage ? page + 1 : null;
+        const prevPage = hasPreviousPage ? page - 1 : null;
+        const lastPage = totalPages;
+        res.json({
+            data: products,
+            page,
+            perPage,
+            totalItems,
+            totalPages,
+            hasNextPage,
+            hasPreviousPage,
+            nextPage,
+            prevPage,
+            lastPage,
+        });
     }
     catch (error) {
+        if (error instanceof ZodError) {
+            rollbar.warning(error, req);
+            return res.status(400).json({
+                errors: error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
+            });
+        }
         if (error instanceof Error)
             rollbar.error(error, req);
         else
@@ -45,16 +66,14 @@ export const getProducts = async (req, res) => {
 // Pobieranie pojedynczego produktu po ID
 export const getProduct = async (req, res) => {
     try {
-        const { params: { id } } = await getProductSchema.parseAsync(req);
-        const product = await productRepository.findOneBy({ id });
-        if (!product) {
+        const { params } = await productIdSchema.parseAsync(req);
+        const product = await productRepository.findOneBy({ id: params.id });
+        if (!product)
             return res.status(404).json({ message: "Product not found" });
-        }
         res.json(product);
     }
     catch (error) {
         if (error instanceof ZodError) {
-            // Ostrzeżenie w Rollbar, bo błąd użytkownika
             rollbar.warning(error, req);
             return res.status(400).json({
                 errors: error.issues.map((i) => ({
@@ -74,12 +93,10 @@ export const getProduct = async (req, res) => {
 export const createProduct = async (req, res) => {
     try {
         const { body } = await createProductSchema.parseAsync(req);
-        const { name, price, stock, description } = body;
         const newProduct = productRepository.create({
-            name,
-            price,
-            stock: stock ?? 0,
-            description: description ?? "",
+            ...body,
+            stock: body.stock ?? 0,
+            description: body.description ?? "",
         });
         await productRepository.save(newProduct);
         res.status(201).json(newProduct);
@@ -101,19 +118,13 @@ export const createProduct = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
-// Aktualizacja istniejącego produktu
+// Aktualizacja produktu
 export const updateProduct = async (req, res) => {
     try {
         const { params, body } = await updateProductSchema.parseAsync(req);
         const product = await productRepository.findOneBy({ id: params.id });
-        if (!product) {
+        if (!product)
             return res.status(404).json({ message: "Product not found" });
-        }
-        // Ustawienie wartości domyślnych dla optional
-        if (body.stock === undefined)
-            body.stock = product.stock ?? 0;
-        if (body.description === undefined)
-            body.description = product.description ?? "";
         Object.assign(product, body);
         const updatedProduct = await productRepository.save(product);
         res.json(updatedProduct);
@@ -138,11 +149,10 @@ export const updateProduct = async (req, res) => {
 // Usuwanie produktu (soft delete)
 export const deleteProduct = async (req, res) => {
     try {
-        const { params } = await getProductSchema.parseAsync(req);
+        const { params } = await productIdSchema.parseAsync(req);
         const result = await productRepository.softDelete(params.id);
-        if (!result.affected) {
+        if (!result.affected)
             return res.status(404).json({ message: "Product not found" });
-        }
         res.status(200).json({ message: "Product deleted successfully" });
     }
     catch (error) {
