@@ -1,3 +1,4 @@
+// src/controllers/product.ts
 import type { Request, Response } from "express";
 import { ZodError } from "zod";
 import { AppDataSource } from "../data-source.js";
@@ -10,6 +11,8 @@ import {
   productIdSchema,
 } from "../validators/product.validator.js";
 import { Like, Equal } from "typeorm";
+import { redisClient } from "../redisClient.js";
+import { CACHE_KEYS } from "../constans/cacheKeys.js";
 
 const productRepository = AppDataSource.getRepository(Product);
 
@@ -43,7 +46,6 @@ export const getProducts = async (req: Request, res: Response) => {
         case "price":
           where = { price: Equal(parseFloat(query)) };
           break;
-        // inne filtry można dodać w razie potrzeby
         default:
           where = {};
       }
@@ -55,9 +57,6 @@ export const getProducts = async (req: Request, res: Response) => {
     const totalPages = Math.ceil(totalItems / perPage);
     const hasNextPage = page < totalPages;
     const hasPreviousPage = page > 1;
-    const nextPage = hasNextPage ? page + 1 : null;
-    const prevPage = hasPreviousPage ? page - 1 : null;
-    const lastPage = totalPages;
 
     res.json({
       data: products,
@@ -67,20 +66,21 @@ export const getProducts = async (req: Request, res: Response) => {
       totalPages,
       hasNextPage,
       hasPreviousPage,
-      nextPage,
-      prevPage,
-      lastPage,
+      nextPage: hasNextPage ? page + 1 : null,
+      prevPage: hasPreviousPage ? page - 1 : null,
+      lastPage: totalPages,
     });
   } catch (error: unknown) {
     if (error instanceof ZodError) {
       rollbar.warning(error, req);
       return res.status(400).json({
-        errors: error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
+        errors: error.issues.map((i) => ({
+          path: i.path.join("."),
+          message: i.message,
+        })),
       });
     }
-    if (error instanceof Error) rollbar.error(error, req);
-    else rollbar.error(new Error(JSON.stringify(error)), req);
-
+    rollbar.error(error instanceof Error ? error : new Error(JSON.stringify(error)), req);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -102,8 +102,7 @@ export const getProduct = async (req: Request, res: Response) => {
         })),
       });
     }
-    if (error instanceof Error) rollbar.error(error, req);
-    else rollbar.error(new Error(JSON.stringify(error)), req);
+    rollbar.error(error instanceof Error ? error : new Error(JSON.stringify(error)), req);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -118,6 +117,10 @@ export const createProduct = async (req: Request, res: Response) => {
       description: body.description ?? "",
     });
     await productRepository.save(newProduct);
+
+    // ❌ invalidacja cache
+    await redisClient.del(CACHE_KEYS.PRODUCTS);
+
     res.status(201).json(newProduct);
   } catch (error: unknown) {
     if (error instanceof ZodError) {
@@ -129,8 +132,7 @@ export const createProduct = async (req: Request, res: Response) => {
         })),
       });
     }
-    if (error instanceof Error) rollbar.error(error, req);
-    else rollbar.error(new Error(JSON.stringify(error)), req);
+    rollbar.error(error instanceof Error ? error : new Error(JSON.stringify(error)), req);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -141,8 +143,14 @@ export const updateProduct = async (req: Request, res: Response) => {
     const { params, body } = await updateProductSchema.parseAsync(req);
     const product = await productRepository.findOneBy({ id: params.id });
     if (!product) return res.status(404).json({ message: "Product not found" });
+
     Object.assign(product, body);
     const updatedProduct = await productRepository.save(product);
+
+    // ❌ invalidacja cache
+    await redisClient.del(CACHE_KEYS.PRODUCTS);
+    await redisClient.del(`${CACHE_KEYS.PRODUCT}:${params.id}`);
+
     res.json(updatedProduct);
   } catch (error: unknown) {
     if (error instanceof ZodError) {
@@ -154,8 +162,7 @@ export const updateProduct = async (req: Request, res: Response) => {
         })),
       });
     }
-    if (error instanceof Error) rollbar.error(error, req);
-    else rollbar.error(new Error(JSON.stringify(error)), req);
+    rollbar.error(error instanceof Error ? error : new Error(JSON.stringify(error)), req);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -166,6 +173,11 @@ export const deleteProduct = async (req: Request, res: Response) => {
     const { params } = await productIdSchema.parseAsync(req);
     const result = await productRepository.softDelete(params.id);
     if (!result.affected) return res.status(404).json({ message: "Product not found" });
+
+    // ❌ invalidacja cache
+    await redisClient.del(CACHE_KEYS.PRODUCTS);
+    await redisClient.del(`${CACHE_KEYS.PRODUCT}:${params.id}`);
+
     res.status(200).json({ message: "Product deleted successfully" });
   } catch (error: unknown) {
     if (error instanceof ZodError) {
@@ -177,8 +189,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
         })),
       });
     }
-    if (error instanceof Error) rollbar.error(error, req);
-    else rollbar.error(new Error(JSON.stringify(error)), req);
+    rollbar.error(error instanceof Error ? error : new Error(JSON.stringify(error)), req);
     res.status(500).json({ message: "Internal server error" });
   }
 };

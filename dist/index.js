@@ -9,6 +9,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import { rollbar } from "./rollbar-config.js";
 import { swaggerDocs } from "./swagger.js";
+import { initRedis } from "./redisClient.js";
 dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
@@ -34,10 +35,17 @@ app.use((req, res, next) => {
 });
 // Rollbar middleware (na końcu)
 app.use(rollbar.errorHandler());
-AppDataSource.initialize().then(() => {
-    app.listen(port, () => {
-        console.log(`[server]: Server is running at http://localhost:${port}`);
-        rollbar.log("Server started successfully ✅");
-    });
+AppDataSource.initialize().then(async () => {
+    try {
+        await initRedis(); // 🚀 podłączamy Redis
+        app.listen(port, () => {
+            console.log(`[server]: Server is running at http://localhost:${port}`);
+            rollbar.log("Server started successfully ✅");
+        });
+    }
+    catch (error) {
+        console.error("❌ Failed to connect to Redis:", error);
+        process.exit(1);
+    }
 });
 //# sourceMappingURL=index.js.map

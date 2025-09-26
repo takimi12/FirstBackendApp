@@ -3,6 +3,7 @@ import { createProduct, deleteProduct, getProduct, getProducts, updateProduct, }
 import { loginUser, logoutUser, registerUser } from "../../controllers/authcontrollers.js";
 import { verifyToken } from "../../middlewares/isAuth.js";
 import { getUserCart, addToCart, removeFromCart } from "../../controllers/cart.js";
+import { cacheMiddleware } from "../../middlewares/cache.js";
 const router = Router();
 /**
  * @swagger
@@ -284,5 +285,10 @@ router.get("/secure-data", verifyToken, (req, res) => {
     const user = req.user;
     res.json({ message: "Dane tylko dla zalogowanych użytkowników", user });
 });
+// cache dla jednego produktu (klucz = "product:{id}")
+router.get("/product/:id", cacheMiddleware((req) => `product:${req.params.id}`, 60), // TTL = 60s
+getProduct);
+// cache dla listy produktów (klucz = "products")
+router.get("/products", cacheMiddleware((req) => `products:${JSON.stringify(req.query)}`, 60), getProducts);
 export default router;
 //# sourceMappingURL=index.js.map
