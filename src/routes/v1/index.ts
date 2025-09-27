@@ -10,6 +10,8 @@ import { loginUser, logoutUser, registerUser } from "../../controllers/authcontr
 import { verifyToken, type AuthRequest } from "../../middlewares/isAuth.js"; 
 import { getUserCart, addToCart, removeFromCart } from "../../controllers/cart.js";
 import { cacheMiddleware } from "../../middlewares/cache.js";
+import multer from "multer";
+import uploadImage from "../../controllers/upload.js";
 
 const router = Router();
 
@@ -318,5 +320,22 @@ router.get(
   cacheMiddleware((req) => `products:${JSON.stringify(req.query)}`, 60), 
   getProducts
 );
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // max 5MB
+  fileFilter: (req, file, cb) => {
+    if (["image/jpeg", "image/png"].includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type"));
+    }
+  },
+});
 
+// Endpoint do uploadu plików
+router.post(
+  "/upload",
+  upload.single("file"),
+  (req, res, next) => uploadImage(req as any, res).catch(next)
+);
 export default router;
