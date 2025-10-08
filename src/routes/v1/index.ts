@@ -395,6 +395,7 @@ import uploadImage from "../../controllers/upload.js";
 // Middlewares
 import { verifyToken, type AuthRequest } from "../../middlewares/isAuth.js"; 
 import { cacheMiddleware } from "../../middlewares/cache.js";
+import { createOrderFromCart } from "../../controllers/orderControllers.js";
 
 const router = Router();
 
@@ -506,6 +507,10 @@ router.get("/secure-data", verifyToken, (req, res) => {
     user 
   });
 });
+
+
+router.post("/order/create", verifyToken, createOrderFromCart);
+
 
 /**
  * @swagger

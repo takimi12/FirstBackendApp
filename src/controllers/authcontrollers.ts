@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
 import admin from "../config/firebase.js";
 import { AppDataSource } from "../data-source.js";
-import { User, UserRole } from "../models/user.js";
-import { Cart } from "../models/cart.js";
+import { User, UserRole } from "../models/entities/user.js";
+import { Cart } from "../models/entities/cart.js";
 
 const userRepository = AppDataSource.getRepository(User);
 const cartRepository = AppDataSource.getRepository(Cart);
@@ -29,7 +29,7 @@ export const registerUser = async (req: Request, res: Response) => {
 
     await userRepository.save(newUser);
 
-    // 👉 Tworzymy pusty koszyk dla nowego użytkownika
+    // Tworzymy pusty koszyk dla nowego użytkownika
     const cart = cartRepository.create({
       user: newUser,
       items: [],
@@ -95,6 +95,7 @@ export const loginUser = async (req: Request, res: Response) => {
     return res.status(200).json({
       message: "Zalogowano pomyślnie",
       user: localUser,
+      token: data.idToken 
     });
   } catch (error: any) {
     return res.status(500).json({ message: "Błąd logowania", error: error.message });

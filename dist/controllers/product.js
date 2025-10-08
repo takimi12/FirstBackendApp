@@ -1,6 +1,6 @@
 import { ZodError } from "zod";
 import { AppDataSource } from "../data-source.js";
-import { Product } from "../models/product.js";
+import { Product } from "../models/entities//product.js";
 import { rollbar } from "../rollbar-config.js";
 import { getProductsSchema, createProductSchema, updateProductSchema, productIdSchema, } from "../validators/product.validator.js";
 import { Like, Equal } from "typeorm";

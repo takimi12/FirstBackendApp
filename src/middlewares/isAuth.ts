@@ -1,20 +1,19 @@
 import type { Request, Response, NextFunction } from "express";
 import admin from "../config/firebase.js";
 
-// Rozszerzenie interfejsu Request o cookies
+// Rozszerzamy Request o user
 export interface AuthRequest extends Request {
-    cookies: {
-      Authorization?: string;
-      [key: string]: string | undefined;
-    };
-    user?: admin.auth.DecodedIdToken;
-  }
+  user?: admin.auth.DecodedIdToken;
+}
+
 export const verifyToken = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
-  const token = req.cookies?.Authorization;
+  // Pobranie tokena z nagłówka lub ciasteczka
+  const token =
+    req.headers.authorization?.replace("Bearer ", "") || req.cookies?.Authorization;
 
   if (!token) {
     return res.status(401).json({ message: "Brak tokena" });
@@ -22,9 +21,10 @@ export const verifyToken = async (
 
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
-    req.user = decodedToken; // Teraz TS wie, że req.user istnieje
+    req.user = decodedToken; // dodajemy user do request
     return next();
   } catch (error) {
+    console.error("Błąd weryfikacji tokena:", error);
     return res.status(403).json({ message: "Nieprawidłowy token" });
   }
 };

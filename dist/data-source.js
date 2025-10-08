@@ -2,6 +2,12 @@ import { DataSource } from "typeorm";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import { Order } from "./models/entities/order.js";
+import { OrderItem } from "./models/entities/orderItem.js";
+import { User } from "./models/entities/user.js";
+import { Product } from "./models/entities/product.js";
+import { Cart } from "./models/entities/cart.js";
+import { CartItem } from "./models/entities/cartItem.js";
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,11 +25,11 @@ export const AppDataSource = new DataSource({
     username: process.env.DB_USER,
     password: process.env.DB_USER_PASSWORD,
     database: process.env.DB_NAME,
-    synchronize: false, // ❌ wyłączamy automatyczne synchronizowanie
+    synchronize: false,
     logging: true,
-    entities: [path.join(__dirname, "./models/*{.ts,.js}")],
+    entities: [Order, OrderItem, User, Product, Cart, CartItem],
     subscribers: [],
     migrations: [path.join(__dirname, "./migrations/*{.ts,.js}")],
-    migrationsRun: true, // ✅ automatycznie odpali migracje przy starcie appki
+    migrationsRun: true,
 });
 //# sourceMappingURL=data-source.js.map

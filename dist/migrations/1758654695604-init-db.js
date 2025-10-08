@@ -1,4 +1,4 @@
-import { Product } from "../models/product.js"; // upewnij się, że ścieżka jest poprawna
+import { Product } from "../models/entities/product.js"; // upewnij się, że ścieżka jest poprawna
 export class InitDb1758654695604 {
     async up(queryRunner) {
         // Dodanie produktów

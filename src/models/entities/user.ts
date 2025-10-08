@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, OneToOne, Column } from "typeorm";
 import type { Cart } from "./cart.js";
-import { Cart as CartEntity } from "./cart.js";
+import { Cart as CartEntity } from ".//cart.js";
 
 export enum UserRole {
   ADMIN = "admin",

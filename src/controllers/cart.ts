@@ -1,9 +1,9 @@
 import type { Response } from "express";
 import { AppDataSource } from "../data-source.js";
-import { Cart } from "../models/cart.js";
-import { CartItem } from "../models/cartItem.js";
-import { Product } from "../models/product.js";
-import { User } from "../models/user.js";
+import { Cart } from "../models/entities/cart.js";
+import { CartItem } from "../models/entities/cartItem.js";
+import { Product } from "../models/entities/product.js";
+import { User } from "../models/entities/user.js";
 import type { AuthRequest } from "../middlewares/isAuth.js";
 
 const cartRepository = AppDataSource.getRepository(Cart);

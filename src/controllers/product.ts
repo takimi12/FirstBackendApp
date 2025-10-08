@@ -2,7 +2,7 @@
 import type { Request, Response } from "express";
 import { ZodError } from "zod";
 import { AppDataSource } from "../data-source.js";
-import { Product } from "../models/product.js";
+import { Product } from "../models/entities//product.js";
 import { rollbar } from "../rollbar-config.js";
 import {
   getProductsSchema,
