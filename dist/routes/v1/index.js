@@ -346,7 +346,6 @@
 //   convertSpreadsheet as any // <-- rzutujemy tymczasowo na `any`
 // );
 // router.get("/pdf/:orderId", verifyToken, getPdfById);
-// export default router;
 import { Router } from "express";
 import multer from "multer";
 // Controllers
@@ -356,6 +355,7 @@ import { getUserCart, addToCart, removeFromCart } from "../../controllers/cart.j
 import { getPdfById } from "../../controllers/pdfController.js";
 import { convertSpreadsheet } from "../../controllers/excelController.js";
 import uploadImage from "../../controllers/upload.js";
+import { createReview, getReviews, getReview, updateReview, deleteReview, acceptReview } from "../../controllers/review.js";
 // Middlewares
 import { verifyToken } from "../../middlewares/isAuth.js";
 import { cacheMiddleware } from "../../middlewares/cache.js";
@@ -364,31 +364,26 @@ const router = Router();
 // =====================================
 // MULTER CONFIGURATIONS
 // =====================================
-// Configuration for image uploads
 const uploadImageConfig = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 }, // max 5MB
+    limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
-        if (["image/jpeg", "image/png"].includes(file.mimetype)) {
+        if (["image/jpeg", "image/png"].includes(file.mimetype))
             cb(null, true);
-        }
-        else {
+        else
             cb(new Error("Invalid file type"));
-        }
     },
 });
-// Configuration for spreadsheet uploads
 const uploadSpreadsheetConfig = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 }, // max 5MB
+    limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
-        if (file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-            file.mimetype === "text/csv") {
+        if (file.mimetype ===
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+            file.mimetype === "text/csv")
             cb(null, true);
-        }
-        else {
+        else
             cb(new Error("Invalid file type"));
-        }
     },
 });
 // =====================================
@@ -400,17 +395,20 @@ router.post("/auth/logout", logoutUser);
 // =====================================
 // PRODUCT ROUTES
 // =====================================
-// Get all products with filtering, sorting and pagination
 router.get("/products", cacheMiddleware((req) => `products:${JSON.stringify(req.query)}`, 60), getProducts);
-// Get single product by ID (with cache)
-router.get("/product/:id", cacheMiddleware((req) => `product:${req.params.id}`, 60), // TTL = 60s
-getProduct);
-// Create new product
+router.get("/product/:id", cacheMiddleware((req) => `product:${req.params.id}`, 60), getProduct);
 router.post("/product", verifyToken, createProduct);
-// Update existing product
 router.put("/product/:id", verifyToken, updateProduct);
-// Delete product
 router.delete("/product/:id", verifyToken, deleteProduct);
+// =====================================
+// REVIEW ROUTES (MongoDB)
+// =====================================
+router.post("/review", createReview);
+router.get("/reviews", getReviews);
+router.get("/review/:id", getReview);
+router.put("/review/:id", updateReview);
+router.delete("/review/:id", deleteReview);
+router.put("/review/:id/accept", acceptReview);
 // =====================================
 // CART ROUTES
 // =====================================
@@ -420,21 +418,15 @@ router.post("/cart/remove", verifyToken, removeFromCart);
 // =====================================
 // FILE HANDLING ROUTES
 // =====================================
-// Upload images
 router.post("/upload", verifyToken, uploadImageConfig.single("file"), (req, res, next) => uploadImage(req, res).catch(next));
-// Process Excel/CSV files
 router.post("/excel", verifyToken, uploadSpreadsheetConfig.single("file"), convertSpreadsheet);
-// Generate PDF
 router.get("/pdf/:orderId", verifyToken, getPdfById);
 // =====================================
 // PROTECTED ROUTES
 // =====================================
 router.get("/secure-data", verifyToken, (req, res) => {
     const user = req.user;
-    res.json({
-        message: "Dane tylko dla zalogowanych użytkowników",
-        user
-    });
+    res.json({ message: "Dane tylko dla zalogowanych użytkowników", user });
 });
 router.post("/order/create", verifyToken, createOrderFromCart);
 /**

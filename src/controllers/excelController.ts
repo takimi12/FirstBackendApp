@@ -3,7 +3,7 @@ import ExcelJS from "exceljs";
 import { parse } from "csv-parse";
 
 interface FileRequest extends Request {
-  file?: Express.Multer.File;
+  file?: any; // 🔹 używamy any, aby ominąć problemy z typem Buffer
 }
 
 export const convertSpreadsheet = async (req: FileRequest, res: Response) => {
@@ -17,13 +17,13 @@ export const convertSpreadsheet = async (req: FileRequest, res: Response) => {
 
     if (isCSV) {
       // Przetwarzanie CSV
-      const parser = parse(req.file.buffer, {
+      const parser = parse(req.file.buffer as any, {
         columns: true,
         skip_empty_lines: true,
         trim: true,
       });
 
-      const records = [];
+      const records: any[] = [];
       for await (const record of parser) {
         records.push(record);
       }
@@ -35,9 +35,12 @@ export const convertSpreadsheet = async (req: FileRequest, res: Response) => {
     } else {
       // Przetwarzanie Excela
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(Buffer.from(req.file.buffer));
 
-      const result: any = {};
+      // 🔹 użycie any dla buffer
+      const buffer: any = req.file.buffer;
+      await workbook.xlsx.load(buffer);
+
+      const result: Record<string, any[]> = {};
 
       workbook.worksheets.forEach((worksheet) => {
         const sheetData: any[] = [];
@@ -45,7 +48,7 @@ export const convertSpreadsheet = async (req: FileRequest, res: Response) => {
         worksheet.eachRow((row, rowNumber) => {
           if (rowNumber === 1) return; // pomijamy nagłówki
 
-          const rowData: any = {};
+          const rowData: Record<string, any> = {};
           row.eachCell((cell, colNumber) => {
             const header = worksheet.getRow(1).getCell(colNumber).value;
             rowData[header?.toString() || `column${colNumber}`] = cell.value;

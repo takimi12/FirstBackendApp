@@ -26,7 +26,9 @@ export const convertSpreadsheet = async (req, res) => {
         else {
             // Przetwarzanie Excela
             const workbook = new ExcelJS.Workbook();
-            await workbook.xlsx.load(Buffer.from(req.file.buffer));
+            // 🔹 użycie any dla buffer
+            const buffer = req.file.buffer;
+            await workbook.xlsx.load(buffer);
             const result = {};
             workbook.worksheets.forEach((worksheet) => {
                 const sheetData = [];

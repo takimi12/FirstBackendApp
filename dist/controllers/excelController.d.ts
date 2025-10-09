@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 interface FileRequest extends Request {
-    file?: Express.Multer.File;
+    file?: any;
 }
 export declare const convertSpreadsheet: (req: FileRequest, res: Response) => Promise<void>;
 export {};
