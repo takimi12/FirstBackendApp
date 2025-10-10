@@ -1,1 +1,5 @@
+<<<<<<< Updated upstream
 {"version":3,"file":"index.d.ts","sourceRoot":"","sources":["../../../src/routes/v1/index.ts"],"names":[],"mappings":"AAkZA,QAAA,MAAM,MAAM,4CAAW,CAAC;AAmGxB;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;GA6CG;AAEH;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;GAwCG;AAEH;;;;;;;;;;;;;;;;;;GAkBG;AAEH;;;;;;;;;;;;;;;;;GAiBG;AAEH;;;;;;;;;;;;;;;;;;GAkBG;AAEH;;;;;;;;;;;;;;;;;;GAkBG;AAEH,eAAe,MAAM,CAAC"}
+=======
+{"version":3,"file":"index.d.ts","sourceRoot":"","sources":["../../../src/routes/v1/index.ts"],"names":[],"mappings":"AAiZA,QAAA,MAAM,MAAM,4CAAW,CAAC;AAyIxB;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;GA6CG;AAEH;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;GAwCG;AAEH;;;;;;;;;;;;;;;;;;GAkBG;AAEH;;;;;;;;;;;;;;;;;GAiBG;AAEH;;;;;;;;;;;;;;;;;;GAkBG;AAEH;;;;;;;;;;;;;;;;;;GAkBG;AAEH,eAAe,MAAM,CAAC"}
+>>>>>>> Stashed changes

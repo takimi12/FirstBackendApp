@@ -1,8 +1,8 @@
-// src/controllers/product.ts
+// src/controllers/product/product.ts
 import type { Request, Response } from "express";
 import { ZodError } from "zod";
 import { AppDataSource } from "../data-source.js";
-import { Product } from "../models/entities//product.js";
+import { Product } from "../models/entities/product.js";
 import { rollbar } from "../rollbar-config.js";
 import {
   getProductsSchema,
@@ -16,7 +16,7 @@ import { CACHE_KEYS } from "../constans/cacheKeys.js";
 
 const productRepository = AppDataSource.getRepository(Product);
 
-// Pobieranie wszystkich produktów z paginacją, filtrowaniem i sortowaniem
+// 📦 Pobieranie wszystkich produktów z paginacją, filtrowaniem i sortowaniem
 export const getProducts = async (req: Request, res: Response) => {
   try {
     const {
@@ -85,7 +85,7 @@ export const getProducts = async (req: Request, res: Response) => {
   }
 };
 
-// Pobieranie pojedynczego produktu po ID
+// 📦 Pobieranie pojedynczego produktu po ID
 export const getProduct = async (req: Request, res: Response) => {
   try {
     const { params } = await productIdSchema.parseAsync(req);
@@ -107,18 +107,20 @@ export const getProduct = async (req: Request, res: Response) => {
   }
 };
 
-// Tworzenie nowego produktu
+// 🛠️ Tworzenie nowego produktu
 export const createProduct = async (req: Request, res: Response) => {
   try {
     const { body } = await createProductSchema.parseAsync(req);
+
     const newProduct = productRepository.create({
       ...body,
       stock: body.stock ?? 0,
       description: body.description ?? "",
-    });
+    } as Partial<Product>); // ✅ poprawka TS
+
     await productRepository.save(newProduct);
 
-    // ❌ invalidacja cache
+    // 🧹 Inwalidacja cache
     await redisClient.del(CACHE_KEYS.PRODUCTS);
 
     res.status(201).json(newProduct);
@@ -137,17 +139,18 @@ export const createProduct = async (req: Request, res: Response) => {
   }
 };
 
-// Aktualizacja produktu
+// 🧩 Aktualizacja produktu
 export const updateProduct = async (req: Request, res: Response) => {
   try {
     const { params, body } = await updateProductSchema.parseAsync(req);
+
     const product = await productRepository.findOneBy({ id: params.id });
     if (!product) return res.status(404).json({ message: "Product not found" });
 
-    Object.assign(product, body);
+    Object.assign(product, body as Partial<Product>); // ✅ poprawka TS
     const updatedProduct = await productRepository.save(product);
 
-    // ❌ invalidacja cache
+    // 🧹 Inwalidacja cache
     await redisClient.del(CACHE_KEYS.PRODUCTS);
     await redisClient.del(`${CACHE_KEYS.PRODUCT}:${params.id}`);
 
@@ -167,14 +170,14 @@ export const updateProduct = async (req: Request, res: Response) => {
   }
 };
 
-// Usuwanie produktu (soft delete)
+// 🗑️ Usuwanie produktu (soft delete)
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const { params } = await productIdSchema.parseAsync(req);
     const result = await productRepository.softDelete(params.id);
     if (!result.affected) return res.status(404).json({ message: "Product not found" });
 
-    // ❌ invalidacja cache
+    // 🧹 Inwalidacja cache
     await redisClient.del(CACHE_KEYS.PRODUCTS);
     await redisClient.del(`${CACHE_KEYS.PRODUCT}:${params.id}`);
 

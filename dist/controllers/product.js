@@ -1,13 +1,13 @@
 import { ZodError } from "zod";
 import { AppDataSource } from "../data-source.js";
-import { Product } from "../models/entities//product.js";
+import { Product } from "../models/entities/product.js";
 import { rollbar } from "../rollbar-config.js";
 import { getProductsSchema, createProductSchema, updateProductSchema, productIdSchema, } from "../validators/product.validator.js";
 import { Like, Equal } from "typeorm";
 import { redisClient } from "../redisClient.js";
 import { CACHE_KEYS } from "../constans/cacheKeys.js";
 const productRepository = AppDataSource.getRepository(Product);
-// Pobieranie wszystkich produktów z paginacją, filtrowaniem i sortowaniem
+// 📦 Pobieranie wszystkich produktów z paginacją, filtrowaniem i sortowaniem
 export const getProducts = async (req, res) => {
     try {
         const { query: { page = 1, perPage = 10, sortBy = "createdAt", sortDir = "desc", filterBy, query, }, } = await getProductsSchema.parseAsync(req);
@@ -61,7 +61,7 @@ export const getProducts = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
-// Pobieranie pojedynczego produktu po ID
+// 📦 Pobieranie pojedynczego produktu po ID
 export const getProduct = async (req, res) => {
     try {
         const { params } = await productIdSchema.parseAsync(req);
@@ -84,7 +84,7 @@ export const getProduct = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
-// Tworzenie nowego produktu
+// 🛠️ Tworzenie nowego produktu
 export const createProduct = async (req, res) => {
     try {
         const { body } = await createProductSchema.parseAsync(req);
@@ -92,9 +92,9 @@ export const createProduct = async (req, res) => {
             ...body,
             stock: body.stock ?? 0,
             description: body.description ?? "",
-        });
+        }); // ✅ poprawka TS
         await productRepository.save(newProduct);
-        // ❌ invalidacja cache
+        // 🧹 Inwalidacja cache
         await redisClient.del(CACHE_KEYS.PRODUCTS);
         res.status(201).json(newProduct);
     }
@@ -112,16 +112,16 @@ export const createProduct = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
-// Aktualizacja produktu
+// 🧩 Aktualizacja produktu
 export const updateProduct = async (req, res) => {
     try {
         const { params, body } = await updateProductSchema.parseAsync(req);
         const product = await productRepository.findOneBy({ id: params.id });
         if (!product)
             return res.status(404).json({ message: "Product not found" });
-        Object.assign(product, body);
+        Object.assign(product, body); // ✅ poprawka TS
         const updatedProduct = await productRepository.save(product);
-        // ❌ invalidacja cache
+        // 🧹 Inwalidacja cache
         await redisClient.del(CACHE_KEYS.PRODUCTS);
         await redisClient.del(`${CACHE_KEYS.PRODUCT}:${params.id}`);
         res.json(updatedProduct);
@@ -140,14 +140,14 @@ export const updateProduct = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
-// Usuwanie produktu (soft delete)
+// 🗑️ Usuwanie produktu (soft delete)
 export const deleteProduct = async (req, res) => {
     try {
         const { params } = await productIdSchema.parseAsync(req);
         const result = await productRepository.softDelete(params.id);
         if (!result.affected)
             return res.status(404).json({ message: "Product not found" });
-        // ❌ invalidacja cache
+        // 🧹 Inwalidacja cache
         await redisClient.del(CACHE_KEYS.PRODUCTS);
         await redisClient.del(`${CACHE_KEYS.PRODUCT}:${params.id}`);
         res.status(200).json({ message: "Product deleted successfully" });

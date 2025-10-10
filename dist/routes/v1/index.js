@@ -360,6 +360,7 @@ import { createReview, getReviews, getReview, updateReview, deleteReview, accept
 import { verifyToken } from "../../middlewares/isAuth.js";
 import { cacheMiddleware } from "../../middlewares/cache.js";
 import { createOrderFromCart } from "../../controllers/orderControllers.js";
+import { createReview, getReviews } from "../../controllers/review.js";
 const router = Router();
 // =====================================
 // MULTER CONFIGURATIONS
@@ -427,6 +428,21 @@ router.get("/pdf/:orderId", verifyToken, getPdfById);
 router.get("/secure-data", verifyToken, (req, res) => {
     const user = req.user;
     res.json({ message: "Dane tylko dla zalogowanych użytkowników", user });
+});
+router.post("/order/create", verifyToken, createOrderFromCart);
+// Tworzymy nową recenzję
+router.post("/review", createReview);
+// Pobieramy wszystkie recenzje
+router.get("/reviews", getReviews);
+// =====================================
+// PROTECTED ROUTES
+// =====================================
+router.get("/secure-data", verifyToken, (req, res) => {
+    const user = req.user;
+    res.json({
+        message: "Dane tylko dla zalogowanych użytkowników",
+        user
+    });
 });
 router.post("/order/create", verifyToken, createOrderFromCart);
 /**
