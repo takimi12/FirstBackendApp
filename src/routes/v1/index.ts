@@ -399,7 +399,6 @@ import { createReview, getReviews, getReview, updateReview, deleteReview, accept
 import { verifyToken, type AuthRequest } from "../../middlewares/isAuth.js"; 
 import { cacheMiddleware } from "../../middlewares/cache.js";
 import { createOrderFromCart } from "../../controllers/orderControllers.js";
-import { createReview, getReviews } from "../../controllers/review.js";
 
 
 const router = Router();
