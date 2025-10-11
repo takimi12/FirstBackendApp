@@ -16,12 +16,15 @@ import { swaggerDocs } from "./swagger.js";
 import { initRedis } from "./redisClient.js";
 import { connectToMongoDB } from "./config/mongoose.js"; // MongoDB
 
+// ==================================================
+// Express App
+// ==================================================
 const app: Express = express();
 const port = process.env.PORT || 3000;
 
-// =======================
+// ==================================================
 // Middleware
-// =======================
+// ==================================================
 app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(cors({
@@ -29,64 +32,63 @@ app.use(cors({
   credentials: true,
 }));
 
-// =======================
+// ==================================================
+// Routes
+// ==================================================
+
 // Root route
-// =======================
 app.get("/", (req: Request, res: Response) => {
   res.send("Express + TypeScript Server + zmiany");
 });
 
-// =======================
-// Routes
-// =======================
+// API and pages routes
 app.use("/api/v1", apiV1);
 app.use("/pages", pages);
 
-// =======================
 // Widoki
-// =======================
 app.set("view engine", "ejs");
 app.set("views", "src/views");
 
-// =======================
 // Swagger docs
-// =======================
 swaggerDocs(app);
 
-// =======================
 // 404 handler
-// =======================
 app.use((req, res, next) => {
   res.status(404).send("<h1>Not found</h1>");
 });
 
-// =======================
 // Rollbar error handler
-// =======================
 app.use(rollbar.errorHandler());
 
-// =======================
-// Start serwera
-// =======================
-AppDataSource.initialize().then(async () => {
-  try {
-    console.log("🔹 AppDataSource initialized");
+// ==================================================
+// Start serwera i inicjalizacja serwisów
+// ==================================================
+AppDataSource.initialize()
+  .then(async () => {
+    try {
+      console.log("🔹 AppDataSource initialized");
 
-    // MongoDB
-    await connectToMongoDB();
-    console.log("✅ MongoDB connected successfully");
+      // MongoDB
+      await connectToMongoDB();
+      console.log("✅ MongoDB connected successfully");
 
-    // Redis
-    await initRedis();
-    console.log("✅ Redis initialized successfully");
+      // Redis
+      await initRedis();
+      console.log("✅ Redis initialized successfully");
 
-    app.listen(port, () => {
-      console.log(`[server]: Server is running at http://localhost:${port}`);
-      rollbar.log("Server started successfully ✅");
-    });
-  } catch (error) {
-    console.error("❌ Failed to start server:", error);
-    rollbar.error(error as any);
+      // Start serwera
+      app.listen(port, () => {
+        console.log(`[server]: Server is running at http://localhost:${port}`);
+        rollbar.log("Server started successfully ✅");
+      });
+    } catch (error) {
+      console.error("❌ Failed to connect to services:", error);
+      rollbar.error(error as any);
+      process.exit(1);
+    }
+  })
+  .catch((err) => {
+    console.error("❌ Failed to initialize AppDataSource:", err);
+    rollbar.error(err as any);
     process.exit(1);
-  }
-});
+  });
