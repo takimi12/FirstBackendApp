@@ -69,7 +69,7 @@ export const loginUser = async (req, res) => {
         // Używamy idToken z odpowiedzi Firebase
         res.cookie("Authorization", data.idToken, {
             httpOnly: true,
-            secure: true,
+            secure: process.env.NODE_ENV === "production", // tylko w produkcji HTTPS
             sameSite: "strict",
         });
         return res.status(200).json({

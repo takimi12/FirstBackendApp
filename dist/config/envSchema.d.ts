@@ -1,8 +1,8 @@
 import { z } from "zod";
 export declare const envSchema: z.ZodObject<{
     NODE_ENV: z.ZodEnum<{
-        development: "development";
         production: "production";
+        development: "development";
         test: "test";
     }>;
     PORT: z.ZodString;
@@ -19,7 +19,7 @@ export declare const envSchema: z.ZodObject<{
 export type EnvConfig = z.infer<typeof envSchema>;
 export declare const validateEnv: () => EnvConfig;
 export declare const env: {
-    NODE_ENV: "development" | "production" | "test";
+    NODE_ENV: "production" | "development" | "test";
     PORT: string;
     MONGO_CONNECTION_STRING: string;
     DB_HOST: string;

@@ -2,11 +2,13 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
-import type { Express, Request, Response } from 'express';
+import type { Express, Request, Response } from "express";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import "reflect-metadata";
+import http from "http";
+import { Server } from "socket.io";
 
 import { AppDataSource } from "./data-source.js";
 import apiV1 from "./routes/v1/index.js";
@@ -14,7 +16,8 @@ import pages from "./routes/pages/index.js";
 import { rollbar } from "./rollbar-config.js";
 import { swaggerDocs } from "./swagger.js";
 import { initRedis } from "./redisClient.js";
-import { connectToMongoDB } from "./config/mongoose.js"; // MongoDB
+import { connectToMongoDB } from "./config/mongoose.js";
+import { registerChatSocketHandlers } from "./socket/chatHandler.js"; // 👈 Twój handler socketów
 
 // ==================================================
 // Express App
@@ -27,21 +30,20 @@ const port = process.env.PORT || 3000;
 // ==================================================
 app.use(bodyParser.json());
 app.use(cookieParser());
-app.use(cors({
-  origin: "http://localhost:3000",
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: "*", // pozwól na połączenia z dowolnego źródła (np. Postman, frontend)
+    credentials: true,
+  })
+);
 
 // ==================================================
 // Routes
 // ==================================================
-
-// Root route
 app.get("/", (req: Request, res: Response) => {
-  res.send("Express + TypeScript Server + zmiany");
+  res.send("🚀 Express + TypeScript Server is running!");
 });
 
-// API and pages routes
 app.use("/api/v1", apiV1);
 app.use("/pages", pages);
 
@@ -53,31 +55,43 @@ app.set("views", "src/views");
 swaggerDocs(app);
 
 // 404 handler
-app.use((req, res, next) => {
-  res.status(404).send("<h1>Not found</h1>");
+app.use((req, res) => {
+  res.status(404).send("<h1>404 - Not found</h1>");
 });
 
 // Rollbar error handler
 app.use(rollbar.errorHandler());
 
 // ==================================================
-// Start serwera i inicjalizacja serwisów
+// HTTP + Socket.IO
+// ==================================================
+const httpServer = http.createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*", // 🔥 zezwól na dowolne źródło
+    methods: ["GET", "POST"],
+  },
+});
+
+// ✅ Rejestracja obsługi socketów (chat, pokoje, autoryzacja itd.)
+registerChatSocketHandlers(io);
+
+// ==================================================
+// Start serwera i inicjalizacja baz
 // ==================================================
 AppDataSource.initialize()
   .then(async () => {
     try {
       console.log("🔹 AppDataSource initialized");
 
-      // MongoDB
       await connectToMongoDB();
       console.log("✅ MongoDB connected successfully");
 
-      // Redis
       await initRedis();
       console.log("✅ Redis initialized successfully");
 
-      // Start serwera
-      app.listen(port, () => {
+      httpServer.listen(port, () => {
         console.log(`[server]: Server is running at http://localhost:${port}`);
         rollbar.log("Server started successfully ✅");
       });

@@ -449,14 +449,23 @@ router.get(
   cacheMiddleware((req) => `product:${req.params.id}`, 60),
   getProduct
 );
-router.post("/product", verifyToken, createProduct);
+router.post("/product", verifyToken, (req: AuthRequest, res) => {
+  // przypisanie właściciela produktu
+  req.body.userId = req.user?.uid;
+  return createProduct(req, res);
+});
 router.put("/product/:id", verifyToken, updateProduct);
 router.delete("/product/:id", verifyToken, deleteProduct);
 
 // =====================================
 // REVIEW ROUTES (MongoDB)
 // =====================================
-router.post("/review", createReview);
+router.post("/review", verifyToken, (req: AuthRequest, res) => {
+  // przypisanie autora recenzji
+  req.body.userId = req.user?.uid;
+  return createReview(req, res);
+});
+
 router.get("/reviews", getReviews);
 router.get("/review/:id", getReview);
 router.put("/review/:id", updateReview);
@@ -467,8 +476,14 @@ router.put("/review/:id/accept", acceptReview);
 // CART ROUTES
 // =====================================
 router.get("/cart", verifyToken, getUserCart);
-router.post("/cart/add", verifyToken, addToCart);
-router.post("/cart/remove", verifyToken, removeFromCart);
+router.post("/cart/add", verifyToken, (req: AuthRequest, res) => {
+  req.body.userId = req.user?.uid;
+  return addToCart(req, res);
+});
+router.post("/cart/remove", verifyToken, (req: AuthRequest, res) => {
+  req.body.userId = req.user?.uid;
+  return removeFromCart(req, res);
+});
 
 // =====================================
 // FILE HANDLING ROUTES
@@ -497,8 +512,10 @@ router.get("/secure-data", verifyToken, (req, res) => {
   res.json({ message: "Dane tylko dla zalogowanych użytkowników", user });
 });
 
-router.post("/order/create", verifyToken, createOrderFromCart);
-
+router.post("/order/create", verifyToken, (req: AuthRequest, res) => {
+  req.body.userId = req.user?.uid;
+  return createOrderFromCart(req, res);
+});
 // Tworzymy nową recenzję
 router.post("/review", createReview);
 
@@ -508,12 +525,9 @@ router.get("/reviews", getReviews);
 // =====================================
 // PROTECTED ROUTES
 // =====================================
-router.get("/secure-data", verifyToken, (req, res) => {
-  const user = (req as AuthRequest).user; 
-  res.json({ 
-    message: "Dane tylko dla zalogowanych użytkowników", 
-    user 
-  });
+router.get("/secure-data", verifyToken, (req: AuthRequest, res) => {
+  const id = req.user?.uid;
+  res.json({ message: "Dane tylko dla zalogowanych użytkowników", userId: id, user: req.user });
 });
 
 router.post("/order/create", verifyToken, createOrderFromCart);
